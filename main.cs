@@ -11,46 +11,24 @@ using System.Xml.Linq;
 
 namespace ms
 {
-    class Objects //этот класс должен включать в себя детали, группы деталей, и группы групп деталей
+    class Item
     {
         protected string name;
 
-        public Objects (string _name)
+        public Item(string _name)
         {
             name = _name;
         }
 
-        public override string ToString()
-        {
-            return name;
-        }
-
-        //здесь будут прописаны операторы сравнения любых типов элементов
+        //здесь будут операторы сравнения
     }
 
-    class Obj: Objects //базовый класс для деталей и групп деталей
-    {
-        public string Name
-        {
-            get { return name; }
-        }
-
-        public Obj(string _name): base(_name)
-        { }
-
-        public override string ToString()
-        {
-            return name;
-        }
-    }
-
-    class Detail: Obj //деталь
+    class Detail: Item //деталь
     {
         private string number;
         public string namep;
         public int cost;
 
-        //свойства класса
         public string Number
         {
             get { return number; }
@@ -66,7 +44,6 @@ namespace ms
             get { return cost; }
         }
 
-        //конструктор
         public Detail(string _number, string _named, string _namep, int _cost) : base(_named)
         {
             number = _number;
@@ -79,7 +56,7 @@ namespace ms
             return $"{number}; {name}; {namep}; {cost};";
         }
 
-        public static bool TryParse(string s, out Obj dt)
+        public static bool TryParse(string s, out Item dt)
         {
             dt = null;
             var param = s.Split(';');
@@ -98,28 +75,49 @@ namespace ms
         }
     }
 
-    class Group: Obj //группа деталей
+    class Group: Item //контейнер
     {
         private readonly int count;
+        protected int level;
+        List<Item> items = new List<Item>();
 
-        //свойство
+        public string Name
+        {
+            get { return name; }
+        }
+
         public int Count
         {
             get { return count; }
         }
 
-        //конструктор
-        public Group(string _named, int _count) : base(_named)
+        public Group(string _named, int _count, int _level = 0) : base(_named)
         {
             count = _count;
+            level = _level;
+        }
+
+        public void Add(Item ob)
+        {
+            items.Add(ob);
         }
 
         public override string ToString()
         {
-            return $"{name}; {count};";
+            string ots = new string(' ', level * 4);
+            string s = ots + name + "\n";
+
+            for (int i = 0; i < items.Count; i++)
+            {
+                s += ots + items[i].ToString() + "\n";
+            }
+            return s;
         }
 
-        public static bool TryParse(string s, out Obj gr)
+        public int Length => items.Count;
+        public Item this[int i] => i >= 0 && i < Length ? items[i] : null;
+
+        public static bool TryParse(string s, out Group gr)
         {
             gr = null;
             var param = s.Split(';');
@@ -134,80 +132,24 @@ namespace ms
             }
             return res;
         }
-    }
-
-    class Item : Objects //это должно быть контейнером
-    {
-        protected int level;
-        List<Objects> objs = new List<Objects>();
-
-        //конструктор
-        public Item(string _name, int _level = 0) : base(_name)
-        {
-            level = _level;
-        }
-
-        public void Add(Objects ob)
-        {
-            objs.Add(ob);
-        }
-
-        public override string ToString()
-        {
-            string ots = new string(' ', level * 4);
-            string s = ots + name + "\n";
-
-            for (int i = 0; i < objs.Count; i++)
-            {
-                s += ots + objs[i].ToString() + "\n";
-            }
-            return s;
-        }
-
-        public int Length => objs.Count;
-        public Objects this[int i] => i >= 0 && i < Length ? objs[i] : null;
-
-        public static Item Parse(string s)
-        {
-            Item it = new Item("");
-            var sa = s.Split('\n');
-            for (int i = 0; i < sa.Length; i++)
-            {
-                if (Group.TryParse(sa[i], out var ob) || Detail.TryParse(sa[i], out ob)) it.Add(ob);
-            }
-
-            return it;
-        }
-
         public void LoadFromFile(StreamReader sr)
         {
             string line = sr.ReadLine();
             while (line != "" && !sr.EndOfStream)
             {
-                //если просто деталь, добавляем
-                if (line.Split(';').Length == 4 && Detail.TryParse(line, out var dt)) Add(dt);
-                //иначе это будет группой деталей
-                else
+                if (line != "" && Group.TryParse(line, out Group grp))
                 {
-                    if (line != "" && Group.TryParse(line, out var grp))
+                    for (int i = 0; i < grp.Count; i++)
                     {
-                        if (grp is Group group1)
-                        {
-                            //столько раз, сколько элементов в группе, что-то делаем
-                            for (int i = 0; i < group1.Count; i++)
-                            {
-                                Item g = new Item(line, level + 1);
-                                g.LoadFromFile(sr);
-                                Add(g);
-                            }
-                        }
+                        Group g = new Group(grp.Name, grp.Count, ++level);
+                        g.LoadFromFile(sr);
+                        level--;
+                        Add(g);
                     }
                 }
                 line = sr.ReadLine();
             }
         }
-
-        //функция из Main, которая вызывает фунцию, написанную выше
         public void LoadFromFile(string filename)
         {
             using (StreamReader reader = new StreamReader(filename))
@@ -215,38 +157,25 @@ namespace ms
                 LoadFromFile(reader);
             }
         }
-
-        //public void LoadFromFile(string filename)
-        //{
-        //    using (StreamReader reader = new StreamReader(filename))
-        //    {
-        //        while (!reader.EndOfStream)
-        //        {
-        //            string line = reader.ReadLine();
-        //            if (group.TryParse(line, out var pr) || detail.TryParse(line, out pr)) Add(pr);
-        //        }
-        //    }
-        //}
     }
 
     internal class Program
     {
         static void Main(string[] args)
         {
-            Item item;
-            item = new Item("");
-            item.LoadFromFile(@"C:\Users\Asura\OneDrive\Desktop\запчасти.txt");
+            Group group = new Group("",0);
+            group.LoadFromFile(@"C:\Users\Asura\OneDrive\Desktop\запчасти.txt");
 
-            Console.WriteLine(item);
+            Console.WriteLine(group);
 
             Console.WriteLine("Введите номер искомого товара: ");
             string num = Console.ReadLine();
             string[] proizv = new string[0];
             Detail[] d = new Detail[0];
             Detail mind = null;
-            for (int i = 0; i < item.Length; i++)
+            for (int i = 0; i < group.Length; i++)
             {
-                if (item[i] is Detail det)
+                if (group[i] is Detail det)
                 {
                     if (det.Number == num)
                     {
