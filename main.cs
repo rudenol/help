@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -11,7 +12,7 @@ using System.Xml.Linq;
 
 namespace ms
 {
-    class Item
+    class Item : IComparable
     {
         protected string name;
 
@@ -20,14 +21,54 @@ namespace ms
             name = _name;
         }
 
-        //здесь будут операторы сравнения
+        public int CompareTo(object item)
+        {
+            if (item is Item item1)
+            {
+                if (this > item1) return 1;
+                else if (this < item1) return -1;
+                else return 0;
+            }
+            return 0;
+        }
+
+        public static bool operator >(Item i1, Item i2)
+        {
+            if (i1 is Detail d1)
+                if (i2 is Detail d2)
+                    return d1.Number.CompareTo(d2.Number) > 0;
+                else return false;
+            else if (i1 is Group g1)
+                if (i2 is Group g2)
+                    return g1.Name.CompareTo(g2.Name) > 0;
+                else return false;
+            if (i2 is Group) return true;
+            return false;
+        }
+
+        public static bool operator <(Item i1, Item i2)
+        {
+            return !(i1 > i2) && !(i1.Equals(i2));
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is Item it)
+                return (it.name.CompareTo(name) == 0);
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            return name.GetHashCode();
+        }
     }
 
-    class Detail: Item //деталь
+    class Detail : Item //деталь
     {
         private string number;
         public string namep;
-        public int cost;
+        public string cost;
 
         public string Number
         {
@@ -39,12 +80,12 @@ namespace ms
             get { return namep; }
         }
 
-        public int Cost
+        public string Cost
         {
             get { return cost; }
         }
 
-        public Detail(string _number, string _named, string _namep, int _cost) : base(_named)
+        public Detail(string _number, string _named, string _namep, string _cost) : base(_named)
         {
             number = _number;
             namep = _namep;
@@ -60,12 +101,13 @@ namespace ms
         {
             dt = null;
             var param = s.Split(';');
-            string _number, _named, _namep;
-            int _cost = 0;
-            bool res = (param.Length == 4) && int.TryParse(param[3], out _cost);
+            string _number, _named, _namep, _cost;
+            bool res = (param.Length == 4);
+            if (res == false) return false;
             _number = param[0];
             _named = param[1];
             _namep = param[2];
+            _cost = param[3];
 
             if (res)
             {
@@ -75,7 +117,7 @@ namespace ms
         }
     }
 
-    class Group: Item //контейнер
+    class Group : Item //группа и контейнер
     {
         private readonly int count;
         protected int level;
@@ -91,8 +133,10 @@ namespace ms
             get { return count; }
         }
 
-        public Group(string _named, int _count, int _level = 0) : base(_named)
+        public Group(string _named, int _count = 0, int _level = 0) : base(_named)
         {
+            if (_count < 0) throw new ArgumentOutOfRangeException("count");
+            if (_level < 0) throw new ArgumentOutOfRangeException("level");
             count = _count;
             level = _level;
         }
@@ -105,12 +149,14 @@ namespace ms
         public override string ToString()
         {
             string ots = new string(' ', level * 4);
-            string s = ots + name + "\n";
+            string s = "";
 
-            for (int i = 0; i < items.Count; i++)
+            s += Name + "\n";
+            for (int i = 0; i < items.Count - 1; i++)
             {
-                s += ots + items[i].ToString() + "\n";
+                s += ots + "    " + items[i].ToString() + "\n";
             }
+            s += ots + "    " + items[items.Count - 1].ToString();
             return s;
         }
 
@@ -132,24 +178,58 @@ namespace ms
             }
             return res;
         }
+
+        public void Sort()
+        {
+            items.Sort();
+        }
+
+        public class CompItems : IComparer
+        {
+            public int Compare(object o1, object o2)
+            {
+                if (o1 is Item i1)
+                    if (o2 is Item i2)
+                        if (i1 > i2)
+                            return 1;
+                        else if (i1 < i2)
+                            return -1;
+                        else return 0;
+                return 0;
+            }
+        }
+
+        public void LoadGroup(StreamReader sr, int count)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                string line = sr.ReadLine();
+                if (line != "" && Detail.TryParse(line, out Item dt)) Add(dt);
+                if (line != "" && Group.TryParse(line, out Group grp))
+                {
+                    Group g = new Group(grp.Name, grp.Count, level + 1);
+                    g.LoadGroup(sr, grp.Count);
+                    Add(g);
+                }
+            }
+        }
+
         public void LoadFromFile(StreamReader sr)
         {
             string line = sr.ReadLine();
             while (line != "" && !sr.EndOfStream)
             {
+                if (line != "" && Detail.TryParse(line, out Item dt)) Add(dt);
                 if (line != "" && Group.TryParse(line, out Group grp))
                 {
-                    for (int i = 0; i < grp.Count; i++)
-                    {
-                        Group g = new Group(grp.Name, grp.Count, ++level);
-                        g.LoadFromFile(sr);
-                        level--;
-                        Add(g);
-                    }
+                    Group g = new Group(grp.Name, grp.Count, level + 1);
+                    g.LoadGroup(sr, grp.Count);
+                    Add(g);
                 }
                 line = sr.ReadLine();
             }
         }
+
         public void LoadFromFile(string filename)
         {
             using (StreamReader reader = new StreamReader(filename))
@@ -157,15 +237,25 @@ namespace ms
                 LoadFromFile(reader);
             }
         }
+
+        public IEnumerator GetEnumerator()
+        {
+            return items.GetEnumerator();
+        }
     }
 
     internal class Program
     {
         static void Main(string[] args)
         {
-            Group group = new Group("",0);
-            group.LoadFromFile(@"C:\Users\Asura\OneDrive\Desktop\запчасти.txt");
+            Group group = new Group("Заказ:");
+            //group.LoadFromFile(@"C:\Users\Asura\OneDrive\Desktop\запчасти.txt");
+            group.LoadFromFile(@"C:\Users\Asura\OneDrive\Desktop\1.txt");
 
+            Console.WriteLine(group);
+            Console.WriteLine();
+
+            group.Sort();
             Console.WriteLine(group);
 
             Console.WriteLine("Введите номер искомого товара: ");
@@ -185,7 +275,7 @@ namespace ms
                     bool notcontains = true;
                     for (int k = 0; k < proizv.Length; k++)
                     {
-                        if ( det.NameP.Trim() == proizv[k].Trim()) notcontains = false;
+                        if (det.NameP.Trim() == proizv[k].Trim()) notcontains = false;
                     }
                     if (notcontains)
                     {
@@ -196,10 +286,10 @@ namespace ms
                 int mincost = 1000000000;
                 for (int j = 0; j < d.Length; j++)
                 {
-                    if (d[j].Cost < mincost)
+                    if (Convert.ToInt32(d[j].Cost) < mincost)
                     {
                         mind = d[j];
-                        mincost = d[j].Cost;
+                        mincost = Convert.ToInt32(d[j].Cost);
                     }
                 }
             }
