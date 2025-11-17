@@ -13,7 +13,7 @@ using System.Xml.Linq;
 
 namespace ms
 {
-    class Item : IComparable
+    class Item: IComparable
     {
         protected string name;
 
@@ -41,19 +41,17 @@ namespace ms
                     {
                         return (d1.Cost.CompareTo(d2.Cost) > 0);
                     }
-                    else
-                    {
-                        return (d1.Number.CompareTo(d2.Number) > 0);
+                    else 
+                    { 
+                        return (d1.Number.CompareTo(d2.Number) > 0); 
                     }
+                else if (i2 is Group g2)
+                    return true;
                 else return false;
             else if (i1 is Group g1)
                 if (i2 is Group g2)
                     return g1.Name.CompareTo(g2.Name) > 0;
-                else return false;
-            else if (i1 is Group)
-                if (i2 is Detail)
-                    return true;
-                else return false;
+            else return false;
             return false;
         }
 
@@ -75,7 +73,7 @@ namespace ms
         }
     }
 
-    class Detail : Item //деталь
+    class Detail: Item //деталь
     {
         private string number;
         public string namep;
@@ -128,7 +126,7 @@ namespace ms
         }
     }
 
-    class Group : Item //группа и контейнер
+    class Group: Item //группа и контейнер
     {
         private readonly int count;
         protected int level;
@@ -167,7 +165,7 @@ namespace ms
             {
                 s += ots + "    " + items[i].ToString() + "\n";
             }
-            s += ots + "    " + items[items.Count - 1].ToString();
+            s += ots + "    " + items[items.Count-1].ToString();
             return s;
         }
 
@@ -225,7 +223,7 @@ namespace ms
                 if (line != "" && Detail.TryParse(line, out Item dt)) Add(dt);
                 if (line != "" && Group.TryParse(line, out Group grp))
                 {
-                    Group g = new Group(grp.Name, grp.Count, level + 1);
+                    Group g = new Group(grp.Name, grp.Count, level+1);
                     g.LoadGroup(sr, grp.Count);
                     Add(g);
                 }
@@ -240,7 +238,7 @@ namespace ms
                 if (line != "" && Detail.TryParse(line, out Item dt)) Add(dt);
                 if (line != "" && Group.TryParse(line, out Group grp))
                 {
-                    Group g = new Group(grp.Name, grp.Count, level + 1);
+                    Group g = new Group(grp.Name, grp.Count, level+1);
                     g.LoadGroup(sr, grp.Count);
                     Add(g);
                 }
@@ -338,9 +336,9 @@ namespace ms
         {
             Group group = new Group("Каталог запчастей:");
             group.LoadFromFile(@"C:\Users\Asura\OneDrive\Desktop\запчасти.txt");
-
+            
             Console.WriteLine(group);
-            Console.WriteLine();
+            Console.WriteLine("\nОтсортированная группа: ");
 
             group.Sort();
             Console.WriteLine(group);
