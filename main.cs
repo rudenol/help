@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.ComTypes;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -12,7 +13,7 @@ using System.Xml.Linq;
 
 namespace ms
 {
-    class Item: IComparable
+    class Item : IComparable
     {
         protected string name;
 
@@ -40,9 +41,9 @@ namespace ms
                     {
                         return (d1.Cost.CompareTo(d2.Cost) > 0);
                     }
-                    else 
-                    { 
-                        return (d1.Number.CompareTo(d2.Number) > 0); 
+                    else
+                    {
+                        return (d1.Number.CompareTo(d2.Number) > 0);
                     }
                 else return false;
             else if (i1 is Group g1)
@@ -74,7 +75,7 @@ namespace ms
         }
     }
 
-    class Detail: Item //деталь
+    class Detail : Item //деталь
     {
         private string number;
         public string namep;
@@ -127,7 +128,7 @@ namespace ms
         }
     }
 
-    class Group: Item //группа и контейнер
+    class Group : Item //группа и контейнер
     {
         private readonly int count;
         protected int level;
@@ -166,7 +167,7 @@ namespace ms
             {
                 s += ots + "    " + items[i].ToString() + "\n";
             }
-            s += ots + "    " + items[items.Count-1].ToString();
+            s += ots + "    " + items[items.Count - 1].ToString();
             return s;
         }
 
@@ -224,7 +225,7 @@ namespace ms
                 if (line != "" && Detail.TryParse(line, out Item dt)) Add(dt);
                 if (line != "" && Group.TryParse(line, out Group grp))
                 {
-                    Group g = new Group(grp.Name, grp.Count, level+1);
+                    Group g = new Group(grp.Name, grp.Count, level + 1);
                     g.LoadGroup(sr, grp.Count);
                     Add(g);
                 }
@@ -239,7 +240,7 @@ namespace ms
                 if (line != "" && Detail.TryParse(line, out Item dt)) Add(dt);
                 if (line != "" && Group.TryParse(line, out Group grp))
                 {
-                    Group g = new Group(grp.Name, grp.Count, level+1);
+                    Group g = new Group(grp.Name, grp.Count, level + 1);
                     g.LoadGroup(sr, grp.Count);
                     Add(g);
                 }
@@ -259,10 +260,7 @@ namespace ms
         {
             return items.GetEnumerator();
         }
-    }
 
-    internal class Program
-    {
         public static Detail FindWithNum(Group g, string num)
         {
             Detail mind = null;
@@ -286,7 +284,7 @@ namespace ms
             return mind;
         }
 
-        public static string[] FindUniqueProizv (Group g)
+        public static string[] FindUniqueProizv(Group g)
         {
             string[] proizv = new string[0];
             for (int i = 0; i < g.Length; i++)
@@ -332,25 +330,29 @@ namespace ms
             }
             return proizv;
         }
+    }
 
+    internal class Program
+    {
         static void Main(string[] args)
         {
             Group group = new Group("Каталог запчастей:");
             group.LoadFromFile(@"C:\Users\Asura\OneDrive\Desktop\запчасти.txt");
-            
+
             Console.WriteLine(group);
             Console.WriteLine();
 
             group.Sort();
             Console.WriteLine(group);
 
-            Console.Write("Введите номер искомого товара: ");
+            Console.Write("\nВведите номер искомого товара: ");
             string num = Console.ReadLine();
-            Console.WriteLine(FindWithNum(group, num));
+            Console.WriteLine(Group.FindWithNum(group, num));
             Console.Write("\nУникальные производители: ");
-            for (int i = 0; i < FindUniqueProizv(group).Length; i++)
+            string[] unique = Group.FindUniqueProizv(group);
+            for (int i = 0; i < unique.Length; i++)
             {
-                Console.Write(FindUniqueProizv(group)[i] + "; ");
+                Console.Write(unique[i] + "; ");
             }
 
             Console.ReadLine();
