@@ -12,7 +12,7 @@ using System.Xml.Linq;
 
 namespace ms
 {
-    class Item : IComparable
+    class Item: IComparable
     {
         protected string name;
 
@@ -36,13 +36,23 @@ namespace ms
         {
             if (i1 is Detail d1)
                 if (i2 is Detail d2)
-                    return d1.Number.CompareTo(d2.Number) > 0;
+                    if ((d1.Number.CompareTo(d2.Number) == 0))
+                    {
+                        return (d1.Cost.CompareTo(d2.Cost) > 0);
+                    }
+                    else 
+                    { 
+                        return (d1.Number.CompareTo(d2.Number) > 0); 
+                    }
                 else return false;
             else if (i1 is Group g1)
                 if (i2 is Group g2)
                     return g1.Name.CompareTo(g2.Name) > 0;
                 else return false;
-            if (i2 is Group) return true;
+            else if (i1 is Group)
+                if (i2 is Detail)
+                    return true;
+                else return false;
             return false;
         }
 
@@ -64,7 +74,7 @@ namespace ms
         }
     }
 
-    class Detail : Item //деталь
+    class Detail: Item //деталь
     {
         private string number;
         public string namep;
@@ -117,7 +127,7 @@ namespace ms
         }
     }
 
-    class Group : Item //группа и контейнер
+    class Group: Item //группа и контейнер
     {
         private readonly int count;
         protected int level;
@@ -156,7 +166,7 @@ namespace ms
             {
                 s += ots + "    " + items[i].ToString() + "\n";
             }
-            s += ots + "    " + items[items.Count - 1].ToString();
+            s += ots + "    " + items[items.Count-1].ToString();
             return s;
         }
 
@@ -182,6 +192,13 @@ namespace ms
         public void Sort()
         {
             items.Sort();
+            foreach (var item in items)
+            {
+                if (item is Group g)
+                {
+                    g.Sort();
+                }
+            }
         }
 
         public class CompItems : IComparer
@@ -207,7 +224,7 @@ namespace ms
                 if (line != "" && Detail.TryParse(line, out Item dt)) Add(dt);
                 if (line != "" && Group.TryParse(line, out Group grp))
                 {
-                    Group g = new Group(grp.Name, grp.Count, level + 1);
+                    Group g = new Group(grp.Name, grp.Count, level+1);
                     g.LoadGroup(sr, grp.Count);
                     Add(g);
                 }
@@ -222,7 +239,7 @@ namespace ms
                 if (line != "" && Detail.TryParse(line, out Item dt)) Add(dt);
                 if (line != "" && Group.TryParse(line, out Group grp))
                 {
-                    Group g = new Group(grp.Name, grp.Count, level + 1);
+                    Group g = new Group(grp.Name, grp.Count, level+1);
                     g.LoadGroup(sr, grp.Count);
                     Add(g);
                 }
@@ -246,32 +263,61 @@ namespace ms
 
     internal class Program
     {
-        static void Main(string[] args)
+        public static Detail FindWithNum(Group g, string num)
         {
-            Group group = new Group("Заказ:");
-            //group.LoadFromFile(@"C:\Users\Asura\OneDrive\Desktop\запчасти.txt");
-            group.LoadFromFile(@"C:\Users\Asura\OneDrive\Desktop\1.txt");
-
-            Console.WriteLine(group);
-            Console.WriteLine();
-
-            group.Sort();
-            Console.WriteLine(group);
-
-            Console.WriteLine("Введите номер искомого товара: ");
-            string num = Console.ReadLine();
-            string[] proizv = new string[0];
-            Detail[] d = new Detail[0];
             Detail mind = null;
-            for (int i = 0; i < group.Length; i++)
+            for (int i = 0; i < g.Length; i++)
             {
-                if (group[i] is Detail det)
+                if (g[i] is Group group)
+                {
+                    Detail min = FindWithNum(group, num);
+                    if (min != null && mind != null && Convert.ToInt32(min.Cost) < Convert.ToInt32(mind.Cost)) mind = min;
+                    else if (mind == null && min != null) mind = min;
+                }
+                else if (g[i] is Detail det)
                 {
                     if (det.Number == num)
                     {
-                        Array.Resize(ref d, d.Length + 1);
-                        d[d.Length - 1] = det;
+                        if (mind != null && Convert.ToInt32(det.Cost) < Convert.ToInt32(mind.Cost)) mind = det;
+                        else if (mind == null && det != null) mind = det;
                     }
+                }
+            }
+            return mind;
+        }
+
+        public static string[] FindUniqueProizv (Group g)
+        {
+            string[] proizv = new string[0];
+            for (int i = 0; i < g.Length; i++)
+            {
+                //рекурсивно ищем уникальных производителей внутри групп,
+                //а после этого проверяем наличие этих производителей в изначальном массиве
+                if (g[i] is Group group)
+                {
+                    string[] p = FindUniqueProizv(group);
+                    foreach (string pr in p)
+                    {
+                        bool nc = true;
+                        for (int j = 0; j < proizv.Length; j++)
+                        {
+                            if (pr == proizv[j]) { nc = false; }
+                        }
+                        if (nc == true)
+                        {
+                            Array.Resize(ref proizv, proizv.Length + 1);
+                            proizv[proizv.Length - 1] = pr;
+                        }
+                        else if (proizv.Length == 0)
+                        {
+                            Array.Resize(ref proizv, proizv.Length + 1);
+                            proizv[proizv.Length - 1] = pr;
+                        }
+                    }
+                }
+                //проверяем производителя детали на уникальность
+                else if (g[i] is Detail det)
+                {
                     bool notcontains = true;
                     for (int k = 0; k < proizv.Length; k++)
                     {
@@ -283,21 +329,28 @@ namespace ms
                         proizv[proizv.Length - 1] = det.NameP;
                     }
                 }
-                int mincost = 1000000000;
-                for (int j = 0; j < d.Length; j++)
-                {
-                    if (Convert.ToInt32(d[j].Cost) < mincost)
-                    {
-                        mind = d[j];
-                        mincost = Convert.ToInt32(d[j].Cost);
-                    }
-                }
             }
-            Console.WriteLine(mind);
+            return proizv;
+        }
+
+        static void Main(string[] args)
+        {
+            Group group = new Group("Каталог запчастей:");
+            group.LoadFromFile(@"C:\Users\Asura\OneDrive\Desktop\запчасти.txt");
+            
+            Console.WriteLine(group);
             Console.WriteLine();
-            for (int i = 0; i < proizv.Length; i++)
+
+            group.Sort();
+            Console.WriteLine(group);
+
+            Console.Write("Введите номер искомого товара: ");
+            string num = Console.ReadLine();
+            Console.WriteLine(FindWithNum(group, num));
+            Console.Write("\nУникальные производители: ");
+            for (int i = 0; i < FindUniqueProizv(group).Length; i++)
             {
-                Console.WriteLine(proizv[i]);
+                Console.Write(FindUniqueProizv(group)[i] + "; ");
             }
 
             Console.ReadLine();
