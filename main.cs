@@ -39,7 +39,7 @@ namespace ms
                 if (i2 is Detail d2)
                     if ((d1.Number.CompareTo(d2.Number) == 0))
                     {
-                        return (d1.Cost.CompareTo(d2.Cost) > 0);
+                        return (d1.Cost > d2.Cost);
                     }
                     else 
                     { 
@@ -77,7 +77,7 @@ namespace ms
     {
         private string number;
         public string namep;
-        public string cost;
+        public int cost;
 
         public string Number
         {
@@ -89,12 +89,12 @@ namespace ms
             get { return namep; }
         }
 
-        public string Cost
+        public int Cost
         {
             get { return cost; }
         }
 
-        public Detail(string _number, string _named, string _namep, string _cost) : base(_named)
+        public Detail(string _number, string _named, string _namep, int _cost) : base(_named)
         {
             number = _number;
             namep = _namep;
@@ -110,13 +110,14 @@ namespace ms
         {
             dt = null;
             var param = s.Split(';');
-            string _number, _named, _namep, _cost;
+            string _number, _named, _namep;
+            int _cost;
             bool res = (param.Length == 4);
             if (res == false) return false;
             _number = param[0];
             _named = param[1];
             _namep = param[2];
-            _cost = param[3];
+            _cost = Convert.ToInt32(param[3].Replace(" ", ""));
 
             if (res)
             {
@@ -144,8 +145,6 @@ namespace ms
 
         public Group(string _named, int _count = 0, int _level = 0) : base(_named)
         {
-            if (_count < 0) throw new ArgumentOutOfRangeException("count");
-            if (_level < 0) throw new ArgumentOutOfRangeException("level");
             count = _count;
             level = _level;
         }
@@ -267,14 +266,14 @@ namespace ms
                 if (g[i] is Group group)
                 {
                     Detail min = FindWithNum(group, num);
-                    if (min != null && mind != null && Convert.ToInt32(min.Cost) < Convert.ToInt32(mind.Cost)) mind = min;
+                    if (min != null && mind != null && min.Cost < mind.Cost) mind = min;
                     else if (mind == null && min != null) mind = min;
                 }
                 else if (g[i] is Detail det)
                 {
                     if (det.Number == num)
                     {
-                        if (mind != null && Convert.ToInt32(det.Cost) < Convert.ToInt32(mind.Cost)) mind = det;
+                        if (mind != null && det.Cost < mind.Cost) mind = det;
                         else if (mind == null && det != null) mind = det;
                     }
                 }
@@ -304,11 +303,6 @@ namespace ms
                             Array.Resize(ref proizv, proizv.Length + 1);
                             proizv[proizv.Length - 1] = pr;
                         }
-                        else if (proizv.Length == 0)
-                        {
-                            Array.Resize(ref proizv, proizv.Length + 1);
-                            proizv[proizv.Length - 1] = pr;
-                        }
                     }
                 }
                 //проверяем производителя детали на уникальность
@@ -334,19 +328,19 @@ namespace ms
     {
         static void Main(string[] args)
         {
-            Group group = new Group("Каталог запчастей:");
+            Group group = new Group("Каталог запчастей");
             group.LoadFromFile(@"C:\Users\Asura\OneDrive\Desktop\запчасти.txt");
             
-            Console.WriteLine(group);
-            Console.WriteLine("\nОтсортированная группа: ");
+            Console.WriteLine("Задание 1\n" + group);
+            Console.WriteLine("\nЗадание 2,3 (отсортированная группа): ");
 
             group.Sort();
             Console.WriteLine(group);
 
-            Console.Write("\nВведите номер искомого товара: ");
+            Console.Write("\nЗадание 4\nВведите номер искомого товара: ");
             string num = Console.ReadLine();
             Console.WriteLine(Group.FindWithNum(group, num));
-            Console.Write("\nУникальные производители: ");
+            Console.Write("\nЗадание 5\nУникальные производители: ");
             string[] unique = Group.FindUniqueProizv(group);
             for (int i = 0; i < unique.Length; i++)
             {
